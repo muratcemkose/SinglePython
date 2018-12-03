@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+
 """
 Created on Mon Dec  3 15:45:48 2018
 
-@author: murat_gga8ya6
+@author: Murat Cem Köse
 """
 
 def _FineTuneByN(sc_data,refDataset,annot,de,scores,n):
