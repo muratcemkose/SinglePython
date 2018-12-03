@@ -4,6 +4,10 @@ Created on Mon Dec  3 15:45:48 2018
 
 @author: Murat Cem Köse
 """
+import numpy as np
+import pandas as pd
+import scipy
+from SingleRToPython import utils
 
 def _FineTuneByN(sc_data,refDataset,annot,de,scores,n):
     """ Applies fine tuning and return final annotations of single cells.
@@ -82,7 +86,7 @@ def _FineTuneRoundByN(sc_data,refDataset,annot,top_labels,de,cols):
     refDataset=refDataset.T
     annot=annot[annot["cellType"].isin(top_labels)]
     n=int(500*np.power(2/3,np.log2(len(np.unique(annot.cellType)))))
-    de=getDEgenes(refDataset,annot=annot,n=n)
+    de=utils.getDEgenes(refDataset,annot=annot,n=n)
     de_merged=[]
     [de_merged.extend(i) for i in  de.values()]
     de_merged=np.unique(de_merged)
@@ -169,7 +173,7 @@ def _FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i):
     annot=annot[annot["cellType"].isin(top_labels)]
 
     n=int(500*np.power(2/3,np.log2(len(np.unique(annot.cellType)))))
-    de=getDEgenes(refDataset,annot=annot,n=n)
+    de=utils.getDEgenes(refDataset,annot=annot,n=n)
     de_merged=[]
     [de_merged.extend(j) for j in  de.values()]
     de_merged=np.unique(de_merged)

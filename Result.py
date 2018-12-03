@@ -5,7 +5,7 @@ Created on Mon Dec  3 14:49:07 2018
 @author: Murat Cem Köse
 """
 
-class Result:
+class ResultObject:
     def __init__(self,final_annotations,initial_scores,corelation_matrix,common_de_genes):
         """Contructor function for SinglePython class.
     
@@ -20,7 +20,7 @@ class Result:
         corelation_matrix : DataFrame
             Correlation matrix of cell types.
             
-        common_de_genes : Dict
+        common_de_genes : List
             Differentially highly expressed genes between each pair of cell types.
             
         """

@@ -5,12 +5,14 @@ Created on Mon Dec  3 14:22:31 2018
 @author: Murat Cem Köse
 """
 
-from tuning import *
-from utils import *
-from Result import *
+from SingleRToPython import Result
+from SingleRToPython import utils
+from SingleRToPython import tuning
 import scipy
+import numpy as np
+import pandas as pd
 
-class SinglePython:
+class SinglePythonObject:
     def __init__(self, sc_location,refDataset,annot=None,fine_tuning=False,tuning_by="top_n",tuning_threshold=0.05,tuning_top_n=7,min_gene_th=500,de_genes_n=None):
         """Contructor function for SinglePython class.
     
@@ -48,7 +50,7 @@ class SinglePython:
             
         """
         
-        self.sc_data = readData_SingleR(sc_location,min_gene_th).iloc[:,0:100]
+        self.sc_data = utils.readData_SingleR(sc_location,min_gene_th).iloc[:,0:100]
         if annot is not None:
             self.refDataset = refDataset.astype(float)
             self.annot = annot
@@ -70,7 +72,7 @@ class SinglePython:
         sc_data=self.sc_data.loc[intersect]
         refDataset=self.refDataset.loc[intersect]
     
-        de=getDEgenes(refDataset,self.annot)
+        de=utils.getDEgenes(refDataset,self.annot)
         de_merged=[]
         [de_merged.extend(i) for i in  de.values()]
         de_merged=np.unique(de_merged)
@@ -83,13 +85,13 @@ class SinglePython:
         scores=cor.groupby("cellType").quantile(q=0.8)
         if self.fine_tuning==True:
             if (self.tuning_by=="top_n"):
-                final_annotations=_FineTuneByN(sc_data,refDataset,self.annot,de,scores,self.tuning_top_n)
-                return Result(final_annotations,scores,cor,de_merged)
+                final_annotations=tuning._FineTuneByN(sc_data,refDataset,self.annot,de,scores,self.tuning_top_n)
+                return Result.ResultObject(final_annotations,scores,cor,de_merged)
             elif (self.tuning_by=="threshold"):
-                final_annotations=_FineTuneByT(sc_data,refDataset,self.annot,de,scores,self.tuning_threshold)
-                return Result(final_annotations,scores,cor,de_merged)
+                final_annotations=tuning._FineTuneByT(sc_data,refDataset,self.annot,de,scores,self.tuning_threshold)
+                return Result.ResultObject(final_annotations,scores,cor,de_merged)
             else:
                 print("Undefined tuning method.")
         else:
-            return Result(scores.idxmax(),scores,cor,de_merged)
+            return Result.ResultObject(pd.DataFrame(scores.idxmax(),columns=["final_annotations"]),scores,cor,de_merged)
         
