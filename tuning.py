@@ -130,7 +130,7 @@ def _FineTuneByT(sc_data,refDataset,annot,de,scores,threshold):
     """
     final_annotations=pd.DataFrame(index=["annotation"])
     for i in sc_data.columns:
-        top_labels=scores[scores[i]>0.05].index.values
+        top_labels=scores[scores[i]>threshold].index.values
         while(len(top_labels)>1):
             top_labels=_FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i)
         final_annotations[i]=top_labels[0]
