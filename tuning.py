@@ -7,7 +7,7 @@ Created on Mon Dec  3 15:45:48 2018
 import numpy as np
 import pandas as pd
 import scipy
-from SingleRToPython import utils
+import utils
 
 def _FineTuneByN(sc_data,refDataset,annot,de,scores,n):
     """ Applies fine tuning and return final annotations of single cells.

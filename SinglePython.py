@@ -5,9 +5,9 @@ Created on Mon Dec  3 14:22:31 2018
 @author: Murat Cem Köse
 """
 
-from SingleRToPython import Result
-from SingleRToPython import utils
-from SingleRToPython import tuning
+import Result
+import utils
+import tuning
 import scipy
 import numpy as np
 import pandas as pd
@@ -50,7 +50,7 @@ class SinglePythonObject:
             
         """
         
-        self.sc_data = utils.readData_SingleR(sc_location,min_gene_th).iloc[:,0:100]
+        self.sc_data = utils.readData_SingleR(sc_location,min_gene_th)
         if annot is not None:
             self.refDataset = refDataset.astype(float)
             self.annot = annot
@@ -68,6 +68,7 @@ class SinglePythonObject:
         """ Finds best annotation for single cells and Returns a Result object.
     
         """
+        print(self.refDataset.index)
         intersect=np.intersect1d(self.refDataset.index.values,self.sc_data.index)
         sc_data=self.sc_data.loc[intersect]
         refDataset=self.refDataset.loc[intersect]
