@@ -7,6 +7,7 @@ Created on Mon Dec  3 14:45:33 2018
 import numpy as np
 import scanpy.api as sc
 import pandas as pd
+import scipy
 
 def getDEgenes(refDataset,annot=None,n=None):
     """ Creates a dictionary for differentially highly expressed genes for all pairwise cell types in the a reference data set.
@@ -39,6 +40,17 @@ def getDEgenes(refDataset,annot=None,n=None):
         deGenes[i]=refDataset.iloc[deGenes.get(i).argsort()[-n:]].index.values.tolist()
     return deGenes
 
+def readDataDGE(path):
+    data = sc.read_text(path,
+                delimiter = "\t", first_column_names = True).transpose()
+    
+    data.var_names_make_unique()
+    
+    sc.pp.filter_cells(data, min_genes=1) # Hack to generate the n_genes column
+    sc.pp.filter_genes(data, min_cells=1)
+    
+    return data
+    
 def readData_SingleR(path,min_genes):
     """ Reads, precesses and returns single cell data as a matrix. 
     
@@ -56,15 +68,44 @@ def readData_SingleR(path,min_genes):
         Single cell data matrix. 
         
     """
-    data = sc.read(path + 'matrix.mtx').transpose() #, cache=True
-    data.var_names = np.genfromtxt(path + 'genes.tsv', dtype=str)[:, 1]
-    data.obs_names = np.genfromtxt(path + 'barcodes.tsv', dtype=str)
-    data.var_names_make_unique()
-    data.obs['n_counts'] = np.sum(data.X, axis=1).A1
-    sc.pp.filter_cells(data, min_genes=min_genes)
+    result = sc.read(path + 'matrix.mtx').transpose() #, cache=True
+    result.var_names = np.genfromtxt(path + 'genes.tsv', dtype=str)[:, 1]
+    result.obs_names = np.genfromtxt(path + 'barcodes.tsv', dtype=str)
+    result.var_names_make_unique()
+    result.obs['n_counts'] = np.sum(result.X, axis=1).A1
+    sc.pp.filter_cells(result, min_genes=min_genes)
+    
+    return result
 
-    sc_data=pd.DataFrame(data.X.toarray())
-    sc_data.index=data.obs_names.values
-    sc_data.columns=data.var_names.values
-    sc_data=sc_data.T
-    return sc_data
+def convertAnnDataToDf(scData):    
+    try:
+        result = pd.DataFrame(scData.X.toarray()) # If data is 10x data
+    except:
+        result = pd.DataFrame(scData.X[:]) # If data is Digital Gene expression matrix
+        
+    result.index = scData.obs_names.values
+    result.columns = scData.var_names.values
+    return result.T
+
+def majorCellTypeCount(annotationResult):
+    
+    def splitAndReturnFirst(x):
+        return x.split(":")[0]
+
+    majorCellTypes = list(set(map(splitAndReturnFirst, annotationResult.final_annotations.transpose()["final_annotations"].tolist())))
+    majorCellTypes.sort()
+
+    result = pd.DataFrame()
+
+    for i in majorCellTypes:
+        totalCells = len(annotationResult.final_annotations.columns)
+        cellTypeCount = len(annotationResult.final_annotations.transpose()["final_annotations"][annotationResult.final_annotations.transpose()["final_annotations"].str.startswith(i)])
+
+        result = result.append([{
+            "cellType" : i,
+            "cellTypeCount" : cellTypeCount,
+            "percentageOfCellType" : cellTypeCount / totalCells
+        }])
+
+
+    return result.set_index("cellType").sort_values("cellTypeCount", ascending = False)

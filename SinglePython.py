@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 class SinglePythonObject:
-    def __init__(self, sc_location,refDataset,annot=None,fine_tuning=False,tuning_by="top_n",tuning_threshold=0.05,tuning_top_n=7,min_gene_th=500,de_genes_n=None):
+    def __init__(self, scData, refDataset, annot=None, fine_tuning=False, tuning_by="top_n", tuning_threshold=0.05, tuning_top_n=7, min_gene_th=500, de_genes_n = None):
         """Contructor function for SinglePython class.
     
         Parameters
@@ -50,7 +50,7 @@ class SinglePythonObject:
             
         """
         
-        self.sc_data = utils.readData_SingleR(sc_location,min_gene_th)
+        self.sc_data = utils.convertAnnDataToDf(scData)
         if annot is not None:
             self.refDataset = refDataset.astype(float)
             self.annot = annot
@@ -64,11 +64,10 @@ class SinglePythonObject:
         self.tuning_threshold=tuning_threshold
         self.tuning_top_n=tuning_top_n
         
-    def AnnotateCellTypes(self):
+    def annotateCellTypes(self):
         """ Finds best annotation for single cells and Returns a Result object.
     
         """
-        print(self.refDataset.index)
         intersect=np.intersect1d(self.refDataset.index.values,self.sc_data.index)
         sc_data=self.sc_data.loc[intersect]
         refDataset=self.refDataset.loc[intersect]
