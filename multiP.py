@@ -76,6 +76,6 @@ def multiTuning_t(sc_data,refDataset,annot,de,i,threshold,scores):
     """
     top_labels=scores[scores[i]>max(scores[i])-threshold].dropna().index.values
     while(len(top_labels)>1):
-        top_annotations=tuningMulti._FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i,threshold)
-    return top_annotations
+        top_labels=tuningMulti._FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i,threshold)
+    return top_labels
 
