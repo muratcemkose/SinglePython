@@ -5,26 +5,26 @@ Created on Mon Dec  3 14:22:31 2018
 @author: Murat Cem Köse
 """
 
-import Result
 import utils
 import tuning
+import tuningMulti
 import scipy
 import numpy as np
 import pandas as pd
 
 class SinglePythonObject:
-    def __init__(self, scData, refDataset, annot=None, fine_tuning=False, tuning_by="top_n", tuning_threshold=0.05, tuning_top_n=7, min_gene_th=500, de_genes_n = None):
+    def __init__(self, scData, refDataset, refAnnot, fine_tuning=False, tuning_by="top_n", tuning_threshold=0.05, tuning_top_n=8, multiProcess = True):
         """Contructor function for SinglePython class.
     
         Parameters
         ----------
-        sc_location : Str
+        scData : AnnData
             the location of sc-RNAseq data.
             
         refDataset : DataFrame
             The reference dataset gene expression matrix.
             
-        annot : DataFrame
+        refAnnot : DataFrame
             Annotations for each column in ref_data.
             
         fine_tuning : Boolean
@@ -41,57 +41,58 @@ class SinglePythonObject:
         tuning_top_n : Int
             The number of top correlated cell types to be selected for "top_n" tuning. Default value is 7. 
             
-        min_gene_th : Int
-            Minimum gene threshold for genes that have expression more than zero. It is necessary to determine
-            which cells to contribute to the analysis.
-            
-        de_genes_n : Int
-            The number of top differentially expressed genes to be chosen for the analysis.
+        multiProcess : Boolean
+            If the program will use multiple processing.
             
         """
         
-        self.sc_data = utils.convertAnnDataToDf(scData)
-        if annot is not None:
-            self.refDataset = refDataset.astype(float)
-            self.annot = annot
-        else:
-            self.annot=refDataset.loc["cellType"].T
-            refDataset=refDataset.drop("cellType")
-            self.refDataset=refDataset.astype(float)
-        self.de_genes_n=de_genes_n
-        self.fine_tuning=fine_tuning
-        self.tuning_by=tuning_by
-        self.tuning_threshold=tuning_threshold
-        self.tuning_top_n=tuning_top_n
-        
+        self.scData = scData
+        self.refDataset = refDataset.astype(float)
+        self.refAnnot = refAnnot
+        self.refAnnot.columns = ["cellType"]
+        self.method_parameters = {}
+        self.method_parameters.update({"fine_tuning":fine_tuning})        
+        self.method_parameters.update({"tuning_by":tuning_by})
+        self.method_parameters.update({"tuning_top_n":tuning_top_n}) 
+        self.method_parameters.update({"tuning_threshold":tuning_threshold}) 
+        self.method_parameters.update({"multiProcess":multiProcess}) 
     def annotateCellTypes(self):
-        """ Finds best annotation for single cells and Returns a Result object.
+        """ Finds best annotation for single cells and adds it on the  Result object.
     
         """
-        intersect=np.intersect1d(self.refDataset.index.values,self.sc_data.index)
-        sc_data=self.sc_data.loc[intersect]
+        sc_data = utils.convertAnnDataToDf(self.scData)
+        intersect=np.intersect1d(self.refDataset.index.values,sc_data.index)
+        sc_data=sc_data.loc[intersect]
         refDataset=self.refDataset.loc[intersect]
-    
-        de=utils.getDEgenes(refDataset,self.annot)
+        
+        n=int(500*np.power(2/3,np.log2(len(np.unique(self.refAnnot.cellType)))))
+        
+        de=utils.getDEgenes(refDataset,self.refAnnot)
         de_merged=[]
-        [de_merged.extend(i) for i in  de.values()]
+        [de_merged.extend(i[:n]) for i in  de.values()]
         de_merged=np.unique(de_merged)
     
         cor=scipy.stats.spearmanr(sc_data.loc[de_merged],refDataset.loc[de_merged])
         cor=pd.DataFrame(cor[0]).iloc[:,0:len(sc_data.columns)][-len(refDataset.columns):]
         cor.columns=sc_data.columns
         cor.index=refDataset.columns
-        cor["cellType"]=self.annot["cellType"].values
+        cor["cellType"]=self.refAnnot["cellType"].values
         scores=cor.groupby("cellType").quantile(q=0.8)
-        if self.fine_tuning==True:
-            if (self.tuning_by=="top_n"):
-                final_annotations=tuning._FineTuneByN(sc_data,refDataset,self.annot,de,scores,self.tuning_top_n)
-                return Result.ResultObject(final_annotations,scores,cor,de_merged)
-            elif (self.tuning_by=="threshold"):
-                final_annotations=tuning._FineTuneByT(sc_data,refDataset,self.annot,de,scores,self.tuning_threshold)
-                return Result.ResultObject(final_annotations,scores,cor,de_merged)
+        self.initial_scores = scores
+        self.de_dict = de
+        if self.method_parameters.get("fine_tuning")==True:
+            if (self.method_parameters.get("tuning_by")=="top_n"):
+                if self.method_parameters.get("multiProcess") == True:
+                    self.scData.obs["cell_type"] = tuningMulti._FineTuneByN(sc_data,refDataset,self.refAnnot,de,scores,self.method_parameters.get("tuning_top_n")).iloc[0]
+                else:
+                    self.scData.obs["cell_type"] = tuning._FineTuneByN(sc_data,refDataset,self.refAnnot,de,scores,self.method_parameters.get("tuning_top_n")).iloc[0]
+            elif (self.method_parameters.get("tuning_by")=="threshold"):
+                if self.method_parameters.get("multiProcess") == True:
+                    self.scData.obs["cell_type"] = tuningMulti._FineTuneByT(sc_data, refDataset, self.refAnnot, de, scores, self.method_parameters.get("tuning_threshold")).iloc[0]
+                else:
+                    self.scData.obs["cell_type"] = tuning._FineTuneByT(sc_data,refDataset,self.refAnnot,de,scores,self.method_parameters.get("tuning_threshold")).iloc[0]
             else:
                 print("Undefined tuning method.")
         else:
-            return Result.ResultObject(pd.DataFrame(scores.idxmax(),columns=["final_annotations"]),scores,cor,de_merged)
+            self.scData.obs["cell_type"] = pd.DataFrame(scores.idxmax(),columns=["final_annotations"]).iloc[0]
         

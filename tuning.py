@@ -1,17 +1,16 @@
 
 """
 Created on Mon Dec  3 15:45:48 2018
-
 @author: Murat Cem Köse
 """
 import numpy as np
 import pandas as pd
 import scipy
 import utils
+import multiprocessing as mp
 
 def _FineTuneByN(sc_data,refDataset,annot,de,scores,n):
     """ Applies fine tuning and return final annotations of single cells.
-
     Parameters
     ----------
     sc_data : DataFrame
@@ -48,11 +47,10 @@ def _FineTuneByN(sc_data,refDataset,annot,de,scores,n):
             res=_FineTuneRoundByN(sc_data,refDataset,annot,top_labels,de,cols)
             [d.update({cols[t]:res[t]}) for t in range(len(cols))]
         n=n-1
-    return pd.DataFrame(d,index=["final_annotations"])
+    return pd.DataFrame(d,index=["cellTypes"])
 
 def _FineTuneRoundByN(sc_data,refDataset,annot,top_labels,de,cols):
     """ Returns final annotations of single cells.
-
     Parameters
     ----------
     sc_data : DataFrame
@@ -79,16 +77,13 @@ def _FineTuneRoundByN(sc_data,refDataset,annot,top_labels,de,cols):
         A list of cell types that are associated with given cells.
         
     """
-    refDataset=refDataset.T
-    refDataset["cell_types"]=annot["cellType"].get_values()
-    refDataset=refDataset[refDataset["cell_types"].isin(top_labels)]
-    del refDataset["cell_types"]
-    refDataset=refDataset.T
     annot=annot[annot["cellType"].isin(top_labels)]
-    n=int(500*np.power(2/3,np.log2(len(np.unique(annot.cellType)))))
-    de=utils.getDEgenes(refDataset,annot=annot,n=n)
+    refDataset = refDataset.loc[:,annot.index]
+    
+    n=int(1000*np.power(2/3,np.log2(len(top_labels))))
+
     de_merged=[]
-    [de_merged.extend(i) for i in  de.values()]
+    [de_merged.extend(de.get(i)[:n]) for i in de.keys() if  i[0] in top_labels and i[1] in top_labels]
     de_merged=np.unique(de_merged)
 
     cor=scipy.stats.spearmanr(sc_data.loc[de_merged,cols],refDataset.loc[de_merged])
@@ -101,7 +96,6 @@ def _FineTuneRoundByN(sc_data,refDataset,annot,top_labels,de,cols):
 
 def _FineTuneByT(sc_data,refDataset,annot,de,scores,threshold):
     """ Applies fine tuning and return final annotations of single cells.
-
     Parameters
     ----------
     sc_data : DataFrame
@@ -128,17 +122,16 @@ def _FineTuneByT(sc_data,refDataset,annot,de,scores,threshold):
         A data frame with the final annotations of cell types for each single cell.
         
     """
-    final_annotations=pd.DataFrame(index=["annotation"])
+    final_annotations=pd.DataFrame(index=["cellTypes"])
     for i in sc_data.columns:
-        top_labels=scores[scores[i]>threshold].index.values
+        top_labels=scores[scores[i]>max(scores[i])-threshold].dropna().index.values
         while(len(top_labels)>1):
-            top_labels=_FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i)
+            top_labels=_FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i,threshold)
         final_annotations[i]=top_labels[0]
     return final_annotations
 
-def _FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i):
+def _FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i,threshold):
     """ Returns final annotations of single cells.
-
     Parameters
     ----------
     sc_data : DataFrame
@@ -165,25 +158,26 @@ def _FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i):
         A list of cell types that are associated with given cells.
         
     """
-    refDataset=refDataset.T
-    refDataset["cell_types"]=annot["cellType"].get_values()
-    refDataset=refDataset[refDataset["cell_types"].isin(top_labels)]
-    del refDataset["cell_types"]
-    refDataset=refDataset.T
     annot=annot[annot["cellType"].isin(top_labels)]
+    refDataset = refDataset.loc[:,annot.index]
 
-    n=int(500*np.power(2/3,np.log2(len(np.unique(annot.cellType)))))
-    de=utils.getDEgenes(refDataset,annot=annot,n=n)
+    n=int(1000*np.power(2/3,np.log2(len(top_labels))))
+
     de_merged=[]
-    [de_merged.extend(j) for j in  de.values()]
+    [de_merged.extend(de.get(i)[:n]) for i in de.keys() if  i[0] in top_labels and i[1] in top_labels]
     de_merged=np.unique(de_merged)
 
-    cor=scipy.stats.spearmanr(sc_data.loc[de_merged,i],refDataset.loc[de_merged])
-    cor=pd.DataFrame(cor[0]).iloc[:,0:1][-len(refDataset.columns):]
-    cor.columns=[i]
-    cor.index=refDataset.columns
-    cor["cellType"]=annot["cellType"].values
-    scores=cor.groupby("cellType").quantile(q=0.8)
-    scores=scores.sort_values(by=i,ascending=False)
-    scores=scores.drop(scores.index[-1])
-    return scores.index
+    if len(de_merged) < 20:
+        return top_labels[0]
+    if np.std(sc_data.loc[de_merged,i]) > 0:
+        cor=scipy.stats.spearmanr(sc_data.loc[de_merged,i],refDataset.loc[de_merged])
+        cor=pd.DataFrame(cor[0]).iloc[:,0:1][-len(refDataset.columns):]
+        cor.columns=[i]
+        cor.index=refDataset.columns
+        cor["cellType"]=annot["cellType"].values
+        scores=cor.groupby("cellType").quantile(q=0.8)
+        scores=scores.sort_values(by=i,ascending=False)
+        scores=scores.drop(scores.index[-1])
+        return scores[scores[i]>max(scores[i])-threshold].dropna().index.values
+    else:
+        return top_labels[0]
