@@ -84,6 +84,7 @@ def _FineTuneRoundByN(sc_data,refDataset,annot,top_labels,de,cols):
 
     de_merged=[]
     [de_merged.extend(de.get(i)[:n]) for i in de.keys() if  i[0] in top_labels and i[1] in top_labels]
+    de_merged = np.intersect1d(de_merged,sc_data.index)
     de_merged=np.unique(de_merged)
 
     cor=scipy.stats.spearmanr(sc_data.loc[de_merged,cols],refDataset.loc[de_merged])
@@ -165,6 +166,7 @@ def _FineTuneRoundByT(sc_data,refDataset,annot,top_labels,de,i,threshold):
 
     de_merged=[]
     [de_merged.extend(de.get(i)[:n]) for i in de.keys() if  i[0] in top_labels and i[1] in top_labels]
+    de_merged = np.intersect1d(de_merged,sc_data.index)
     de_merged=np.unique(de_merged)
 
     if len(de_merged) < 20:
