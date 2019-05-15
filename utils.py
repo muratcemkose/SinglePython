@@ -33,10 +33,12 @@ def getDEgenes(refDataset,annot,n=200):
     """
     types = annot.groupby("cellType").groups.keys()
     median = refDataset.groupby(annot.cellType.values,axis=1).median()
-    medDiff = {}
-    [medDiff.update({(i,j):median[i]-median[j]}) for i in types  for j in types if i!=j]
-    deGenes={}
-    [deGenes.update({i: median.index[medDiff.get(i).argsort()[0:200]]}) for i in medDiff.keys()]
+    deGenes = {}
+    for i in types:
+        for j in types:
+            if i!=j:
+                diff = median[i]-median[j]
+                deGenes.update({(i,j):diff[diff > 0].sort_values(ascending=False).index[0:n]})
     return deGenes
     
 def readCountMartix(path,min_genes):
