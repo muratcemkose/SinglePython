@@ -60,16 +60,17 @@ class SinglePythonObject:
         """ Finds best annotation for single cells and adds it on the  Result object.
     
         """
+        de=utils.getDEgenes(self.refDataset,self.refAnnot)
         sc_data = utils.convertAnnDataToDf(self.scData)
         intersect=np.intersect1d(self.refDataset.index.values,sc_data.index)
         sc_data=sc_data.loc[intersect]
         refDataset=self.refDataset.loc[intersect]
         
         n=int(500*np.power(2/3,np.log2(len(np.unique(self.refAnnot.cellType)))))
-        
-        de=utils.getDEgenes(refDataset,self.refAnnot)
+       
         de_merged=[]
         [de_merged.extend(i[:n]) for i in  de.values()]
+        de_merged = np.intersect1d(de_merged,sc_data.index)
         de_merged=np.unique(de_merged)
     
         cor=scipy.stats.spearmanr(sc_data.loc[de_merged],refDataset.loc[de_merged])
