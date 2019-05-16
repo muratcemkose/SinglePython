@@ -48,6 +48,7 @@ class SinglePythonObject:
         
         self.scData = scData
         self.refDataset = refDataset.astype(float)
+        self.refDataset.index = self.refDataset.index.str.lower()
         self.refAnnot = refAnnot
         self.refAnnot.columns = ["cellType"]
         self.method_parameters = {}
