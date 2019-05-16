@@ -63,6 +63,7 @@ class SinglePythonObject:
         """
         de=utils.getDEgenes(self.refDataset,self.refAnnot)
         sc_data = utils.convertAnnDataToDf(self.scData)
+        sc_data.index = sc_data.index.str.lower()
         intersect=np.intersect1d(self.refDataset.index.values,sc_data.index)
         sc_data=sc_data.loc[intersect]
         refDataset=self.refDataset.loc[intersect]
